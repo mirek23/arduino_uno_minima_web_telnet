@@ -14,10 +14,14 @@
 //   P0 = RS, P1 = RW, P2 = E, P3 = backlight, P4..P7 = D4..D7
 //
 // Display policy, per the project brief:
-//   Line 1  system name for the first LCD_NAME_HOLD_MS, then the IP address.
-//           In DHCP mode the name stays up until a lease arrives, so the name
-//           is always shown for at least LCD_NAME_HOLD_MS.
-//   Line 2  temperature as NN.NN degC plus the encoder count.
+//   Boot splash  line 1 shows the centred system name on its own and line 2
+//                stays blank. It ends once the name has been up for
+//                LCD_NAME_HOLD_MS *and* an address is known — in DHCP mode
+//                that means the lease has landed, so the name is always shown
+//                for at least LCD_NAME_HOLD_MS.
+//   Afterwards   line 1 the IP address, line 2 the temperature as NN.NN degC
+//                plus the encoder count.
+// The splash latches off once, so a later link event cannot bring it back.
 //
 // If no backpack answers on the bus every method becomes a no-op, so a missing
 // or unpowered LCD never stalls the rest of the firmware.
@@ -67,6 +71,7 @@ private:
 
     uint32_t _bootMs;
     uint32_t _lastRefresh;
+    bool     _splashDone;       // latched once the splash has been retired
 
     char      _sysName[SYS_NAME_SIZE];
     IPAddress _ip;

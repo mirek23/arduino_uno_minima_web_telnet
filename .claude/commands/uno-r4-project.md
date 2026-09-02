@@ -184,6 +184,10 @@ W5500 has 8 sockets; two are listeners, so keep
   stalled sockets are dropped after `HTTP_CLIENT_TIMEOUT_MS`.
 - The LCD is painted once in `setup()` *before* Ethernet, because a DHCP
   request blocks for seconds and the name must already be visible.
+- The boot splash shows **only** the centred system name; line 2 is held
+  blank until `_splashDone` latches (name up for `LCD_NAME_HOLD_MS` *and*
+  `_ipValid`). The latch is evaluated once per refresh in `update()` so both
+  lines always agree, and it is one-way so a link glitch cannot revive it.
 - `LcdDisplay::begin()` back-dates `_lastRefresh` so that first paint happens.
 - DHCP failure falls back to static; if the stored static fields are blank
   (they are not validated in DHCP mode) it falls back to the compile-time

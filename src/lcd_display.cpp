@@ -28,6 +28,7 @@ LcdDisplay::LcdDisplay()
     , _backlight(LCD_BIT_BACKLIGHT)
     , _bootMs(0)
     , _lastRefresh(0)
+    , _splashDone(false)
     , _ipValid(false)
     , _temperature(0.0f)
     , _tempValid(false)
@@ -179,13 +180,10 @@ static void centerInto(char* out, const char* text) {
 }
 
 void LcdDisplay::composeLine1(char* out) {
-    // Hold the system name for at least LCD_NAME_HOLD_MS, then switch to the
-    // address. Before a DHCP lease lands there is no address to show, so the
-    // name simply stays up.
-    bool holdElapsed = (millis() - _bootMs) >= LCD_NAME_HOLD_MS;
+    // The splash shows the system name; afterwards, the address.
     char buf[24];
 
-    if (holdElapsed && _ipValid) {
+    if (_splashDone) {
         snprintf(buf, sizeof(buf), "%u.%u.%u.%u", _ip[0], _ip[1], _ip[2], _ip[3]);
     } else {
         snprintf(buf, sizeof(buf), "%s", _sysName);
@@ -195,6 +193,10 @@ void LcdDisplay::composeLine1(char* out) {
 }
 
 void LcdDisplay::composeLine2(char* out) {
+    // Blank during the splash, so the first thing on the panel is the system
+    // name and nothing else.
+    if (!_splashDone) { padTo(out, 0); return; }
+
     // Layout, exactly 16 columns:  "_NN.NN`C E:_CCCC"
     //   6 temperature + degree + 'C' + space + "E:" + 5 count = 16
     char buf[32];
@@ -244,6 +246,15 @@ void LcdDisplay::update() {
     uint32_t now = millis();
     if (now - _lastRefresh < LCD_REFRESH_MS) return;
     _lastRefresh = now;
+
+    // Retire the splash once the name has had its minimum time on screen and
+    // an address is actually known. Evaluated once per refresh so both lines
+    // always agree, and latched so it only ever happens on the way up.
+    if (!_splashDone &&
+        (now - _bootMs) >= LCD_NAME_HOLD_MS &&
+        _ipValid) {
+        _splashDone = true;
+    }
 
     char line[LCD_COLS + 1];
 

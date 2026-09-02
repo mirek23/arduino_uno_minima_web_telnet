@@ -147,19 +147,28 @@ on one LAN will fight, so give each board its own:
 ## LCD Behaviour
 
 ```text
-        |    ALS-lab     |  <- system name, centred, first 2 s
-Line 1  |  192.168.1.10  |  <- then the address, also centred
-Line 2  | 23.45°C E:  128|  <- temperature and encoder count
+boot splash            then
+|    ALS-lab     |     |  192.168.1.10  |
+|                |     | 23.45°C E:  128|
+ name only,             address, plus
+ line 2 blank           temperature and count
 ```
 
-Line 1 is **centred** across the 16 columns and shows the system name for at
-least `LCD_NAME_HOLD_MS` (2 s), then the IP address. In DHCP mode the name
-stays up until the lease lands, so the 2 s minimum always holds — the name is
-already on the display before Ethernet is brought up, because a DHCP request
-blocks for seconds.
+**Boot splash.** The display comes up showing nothing but the centred system
+name — line 2 stays blank. The splash is retired once the name has been up for
+`LCD_NAME_HOLD_MS` (2 s) **and** an address is actually known, at which point
+line 1 switches to the IP and line 2 starts showing the readings.
 
-Line 2 is always exactly 16 columns: temperature as `NN.NN` with two decimals
-plus the degree sign, and the encoder count. `--.--` means no sensor.
+In DHCP mode that means the name stays on its own until the lease lands, however
+long that takes, so the 2 s minimum always holds. The name is painted before
+Ethernet is brought up, because a DHCP request blocks for seconds. The splash
+latches off once, so a later link event cannot bring it back.
+
+The handover happens on the next refresh tick, so it lands within
+`LCD_REFRESH_MS` (200 ms) of the condition being met.
+
+Line 2, once live, is always exactly 16 columns: temperature as `NN.NN` with two
+decimals plus the degree sign, and the encoder count. `--.--` means no sensor.
 
 The driver is a direct PCF8574/HD44780 implementation rather than a library, so
 the refresh can diff against a shadow buffer and re-send only the characters
