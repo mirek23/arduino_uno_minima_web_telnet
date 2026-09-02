@@ -31,7 +31,7 @@ providing:
 | **No filesystem partition** | web assets are compiled into flash; no `uploadfs` target |
 | 8 KB data flash as EEPROM | `#include <EEPROM.h>`, `EEPROM.get/put/length` all work |
 | `Print::printf` does **not** exist | use `snprintf` into a buffer, then `print()` |
-| `Wire` is fixed on A4 (SDA) / A5 (SCL) | **A5 cannot be a GPIO jumper** — this is why the defaults jumper is A1, not A5 as the brief asked |
+| `Wire` is fixed on A4 (SDA) / A5 (SCL) | **A5 cannot be a GPIO jumper** — this is why the defaults jumper is D9, not A5 as the brief asked |
 | Only 10 pins have an ICU IRQ channel | see the table below before moving any interrupt pin |
 | Reboot | `NVIC_SystemReset()` |
 
@@ -52,14 +52,14 @@ distinct, hence valid. Source of truth:
 
 | Pin | Function |
 |---|---|
+| D3 | encoder channel B (CHANGE IRQ) |
 | D7 | DS18B20 data (4.7 kΩ pull-up to 5 V) |
+| D9 | defaults jumper, to GND = factory defaults (read once at boot) |
 | D10 | W5500 CS |
 | D11/D12/D13 | SPI MOSI/MISO/SCK |
-| A1 | defaults jumper, to GND = factory defaults |
 | A2 | encoder channel A (CHANGE IRQ) |
 | A3 | encoder button (`INPUT_PULLUP`, LOW = pressed, polled) |
 | A4/A5 | LCD1602 I2C SDA/SCL (PCF8574 at 0x27 or 0x3F, auto-probed) |
-| D3 | encoder channel B (CHANGE IRQ) |
 
 ---
 
@@ -69,7 +69,7 @@ distinct, hence valid. Source of truth:
 setup()
   encoder.begin()            attach A2/D3 interrupts, seed decoder state
   EepromConfig::begin()      report data-flash size
-  read A1 jumper             jumper wins over the stored record
+  read D9 jumper             jumper wins over the stored record
   load config or defaults
   lcd.begin() + lcd.update() paint the name BEFORE Ethernet (DHCP blocks)
   temperature.begin()        probe, set 12-bit resolution
@@ -178,7 +178,7 @@ W5500 has 8 sockets; two are listeners, so keep
 
 ## Gotchas Already Handled
 
-- The defaults jumper is A1 because A5 is I2C SCL (see above).
+- The defaults jumper is D9 because A5 is I2C SCL (see above).
 - The HTTP reader stores **only the request line** and drains the rest of the
   headers unstored, so a large browser header block cannot wedge a session;
   stalled sockets are dropped after `HTTP_CLIENT_TIMEOUT_MS`.

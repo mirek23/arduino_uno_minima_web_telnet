@@ -7,7 +7,7 @@
 //   - LCD1602 with a PCF8574 I2C backpack on A4 (SDA) / A5 (SCL)
 //   - DS18B20 temperature sensor on D7 (4.7k pull-up to 5 V)
 //   - Quadrature encoder on A2 / D3, push button on A3
-//   - A1 to GND at power-up: ignore the EEPROM and boot with the defaults
+//   - D9 to GND at power-up: ignore the EEPROM and boot with the defaults
 //
 // Unlike the dual-core Pico this design is derived from, everything runs in a
 // single cooperative loop(). Nothing in that loop blocks: the DS18B20 uses an

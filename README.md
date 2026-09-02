@@ -36,7 +36,7 @@ adapted to a single-core Renesas RA4M1 with no filesystem partition.
 | Encoder channel A | A2 | P001 | `INPUT_PULLUP`, CHANGE interrupt (IRQ7) |
 | Encoder channel B | D3 | P104 | `INPUT_PULLUP`, CHANGE interrupt (IRQ1) |
 | Encoder button | A3 | P002 | `INPUT_PULLUP`, LOW = pressed, polled |
-| Defaults jumper | **A1** | P000 | Jumper to GND at power-up = factory defaults |
+| Defaults jumper | **D9** | P303 | Jumper to GND at power-up = factory defaults |
 | LCD1602 SDA | A4 | P101 | PCF8574 backpack, address 0x27 or 0x3F |
 | LCD1602 SCL | A5 | P100 | |
 | W5500 CS | D10 | P112 | |
@@ -46,14 +46,15 @@ adapted to a single-core Renesas RA4M1 with no filesystem partition.
 
 ### Two board constraints worth knowing
 
-**The defaults jumper is on A1, not A5.** The project brief asked for A5, but on
+**The defaults jumper is on D9, not A5.** The project brief asked for A5, but on
 the UNO R4 Minima `A5` (P100) *is* the I2C SCL line — `Wire` is hard-wired to
 A4/SDA and A5/SCL, and the Minima has no second I2C bus. Grounding A5 would hold
-SCL low and the LCD would never respond. A1 is free, sits in the same header
-block, and behaves identically. It is a single `#define` in `include/config.h`:
+SCL low and the LCD would never respond. D9 is free and behaves identically; the
+pin is read once at boot, so it does not need to be interrupt-capable. It is a
+single `#define` in `include/config.h`:
 
 ```c
-#define DEFAULTS_JUMPER_PIN     A1
+#define DEFAULTS_JUMPER_PIN     9       // D9
 ```
 
 **Only some pins can raise interrupts.** The RA4M1's ICU gives each pin a fixed
@@ -102,7 +103,7 @@ There is no `uploadfs` step: `pio run -t upload` ships the web UI too.
 
 Settings live in one CRC-protected record in the RA4M1 data flash. At boot:
 
-1. If **A1 is jumpered to GND**, the compile-time defaults are used and the
+1. If **D9 is jumpered to GND**, the compile-time defaults are used and the
    stored record is ignored for that session.
 2. Otherwise the stored record is loaded. A record that is blank, of the wrong
    version, fails its CRC, or fails the sanity checks is treated as absent and

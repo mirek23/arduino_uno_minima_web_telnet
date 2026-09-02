@@ -56,9 +56,10 @@ brief against the hardware. Three findings changed the design.
 The Minima has no second I2C bus. Jumpering A5 to GND, as the brief asked,
 would hold SCL low and the LCD would never respond.
 
-**Resolution:** the defaults jumper moved to **A1** — free, in the same header
-block, and a single `#define DEFAULTS_JUMPER_PIN` in `config.h` if it ever
-needs to move back. Flagged to the user.
+**Resolution:** the defaults jumper moved off A5. It is a single
+`#define DEFAULTS_JUMPER_PIN` in `config.h`, and since the pin is read once at
+boot it does not need to be interrupt-capable. Flagged to the user, who chose
+**D9** (P303, otherwise unused).
 
 ### 2.2 – Only ten pins can raise interrupts
 

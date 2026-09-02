@@ -24,14 +24,14 @@
 
 // ─── "Load factory defaults" jumper ────────────────────────────────────────
 // Jumper this pin to GND at power-up to ignore the EEPROM and boot with the
-// compile-time defaults below. Read once during setup().
+// compile-time defaults below. Read once during setup(), so it does not need
+// to be one of the interrupt-capable pins.
 //
 // NOTE: the project brief specified A5 for this jumper, but on the UNO R4
 // Minima A5 (P100) *is* the I2C SCL line for Wire (A4 = SDA, A5 = SCL) and the
 // Minima has no second I2C bus. Grounding A5 would hold SCL low and kill the
-// LCD, so the jumper lives on A1 — a free pin in the same header block.
-// Change this one line if you rewire it.
-#define DEFAULTS_JUMPER_PIN     A1      // A1  (P000), jumper to GND = defaults
+// LCD, so the jumper lives on D9 instead. Change this one line if you rewire it.
+#define DEFAULTS_JUMPER_PIN     9       // D9  (P303), jumper to GND = defaults
 
 // ─── WIZnet W5500 Lite Ethernet (hardware SPI) ─────────────────────────────
 // SPI is fixed on the R4 Minima: MOSI=D11, MISO=D12, SCK=D13.
