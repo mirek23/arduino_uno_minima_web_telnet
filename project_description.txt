@@ -1,0 +1,21 @@
+This folder is expected to host the visual studio code with platformIO project
+  using arduino uno rev4 minima. Please use the project in
+  /home/mirek/Projects/pico_web_telnet for the reference regarding the git
+  repository configuration and structure of the software.
+
+The project description in this directory:
+The arduino uno rev4 minima has the connection using the i2c interface to 
+a LCD display LCD1602+I2C 16x2. Wiznet 5500 lite network module is connected to the arduino using the SPI interface (D10 for chip select)  .
+ The DS18b20 dallas temperature sensor is connected to D7 pin. The incremental encoder is connected to pin A2 and D3 and the encoder button is connected to the pin A3. The pin A5 is connected to the GND trough the jumper. When the A5 is jumpered then the systems uses the defaultis otherwise it uses the setup from the EEPROM. 
+
+Please create the web server, please use the reference form /home/mirek/Projects/pico_web_telnet. The web server should display on the main page: counts from the encoder and reset counts when the encoder button is pressed. The web server should also show the temperature readout on the main page. 
+The temperature should be read out using non blocking  calls. The web server should have th button on the main page to popup the window with the IP configuration. DHCP or static IP address. The DHCP system name (defualt name ALS-lab). In case of the static configuration: the IP address, network mask, Gateway. When the A5 jumper is used the use the defaults: IP 192.168.1.10, gateway: 192.168.1.1 network mask 255.255.255.0 . The settings  should be saved in the EEPROM whenthe EEPROM save button on the screen is pushed. the system name should be also configurable in the EEPROM from the ame opup web window.
+By default the system should use the static IP address. 
+The popup window should have a buton save chnages to EEPROM and separate button reboot the system.
+
+The LCD should display the system name in the first line and after 2 second it should display the IP address if the static ip address mode is used or to display the IP address form DHCP when it is obtained. In case of the DCP the minimum display time of the system name should be 2 se. The second line of the display should show the temperature 2 digits dot and 2 digits after decimal point. It should also display the counts from the encoder.    
+
+The temperature rselotion should be set to 12 bits.
+
+Please create also a telnet server. the telnet should react to the commands to display the enocder counts, to reset counts, display the temperature, setup the IP address, system name, DHCP or static IP mode of operation. The IP address settings and system name should be saved in EEPROM when chnaged. The telnet commands should be short.
+It should be also a command to save chnages to EEPROM and the command to reboot the system.It should be also the help command to show all of the available commands.
