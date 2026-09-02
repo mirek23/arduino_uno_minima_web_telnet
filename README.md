@@ -4,8 +4,27 @@ Arduino UNO R4 Minima firmware providing a web dashboard and a telnet
 management console over a WIZnet W5500 Lite Ethernet module, with a 16x2 I2C
 LCD, a DS18B20 temperature sensor and a quadrature rotary encoder.
 
-Structured after [`pico_web_telnet`](../pico_web_telnet), adapted to a
-single-core Renesas RA4M1 with no filesystem partition.
+Ported from the `pico_web_telnet` project (RP2040, dual core, LittleFS) and
+adapted to a single-core Renesas RA4M1 with no filesystem partition.
+
+---
+
+## Contents
+
+- [Hardware](#hardware) — pin map and the two board constraints that shaped it
+- [Memory Layout](#memory-layout) — why the web UI lives in program flash
+- [Network](#network) — defaults, boot precedence, edit/save separation
+- [MAC addresses](#mac-addresses)
+- [LCD Behaviour](#lcd-behaviour)
+- [Encoder](#encoder)
+- [Temperature](#temperature)
+- [Building & Flashing](#building--flashing)
+- [Web Dashboard](#web-dashboard) and [REST API](#rest-api)
+- [Telnet Console](#telnet-console)
+- [Single-Core Architecture](#single-core-architecture)
+- [Source Layout](#source-layout)
+- [Libraries](#libraries)
+- [Known Limitations](#known-limitations)
 
 ---
 
@@ -97,7 +116,7 @@ static settings if they are usable, otherwise the compile-time defaults).
 
 Both front-ends stage changes in RAM and only touch flash when you ask:
 
-```
+```text
 web:     [edit the popup]  ->  Save to EEPROM   ->  Reboot system
 telnet:  ni / ns / ng / nd / nn / nm / mac  ->  w  ->  rb
 ```
@@ -116,7 +135,7 @@ would strand the board.
 Every board flashed from this repository starts with the same MAC. Two of them
 on one LAN will fight, so give each board its own:
 
-```
+```text
 > mac de:ad:be:ef:fe:11
 > w
 > rb
@@ -126,7 +145,7 @@ on one LAN will fight, so give each board its own:
 
 ## LCD Behaviour
 
-```
+```text
 Line 1   ALS-lab            <- system name, first 2 s
          192.168.1.10       <- then the address
 Line 2    23.45°C E:  128   <- temperature and encoder count
@@ -166,7 +185,7 @@ button, or the telnet **`cr`** command.
 DS18B20 at 12-bit resolution (0.0625 °C steps, 750 ms conversion), read through
 a non-blocking state machine:
 
-```
+```text
 IDLE  --(TEMP_READ_INTERVAL elapsed)-->  request conversion
 CONVERTING  --(TEMP_CONVERSION_MS elapsed)-->  latch result  -->  IDLE
 ```
@@ -245,7 +264,7 @@ Updates are event-driven over
 | POST | `/api/reboot` | restart the board |
 
 `POST /api/netcfg` accepts any subset of
-`dhcp=0\|1`, `ip`, `sn`, `gw`, `dns`, `name`, `mac` as query parameters and
+`dhcp=0|1`, `ip`, `sn`, `gw`, `dns`, `name`, `mac` as query parameters and
 replies `{"ok":true|false,"msg":"...","dirty":bool}`.
 
 SSE payload:
@@ -259,13 +278,13 @@ SSE payload:
 
 ## Telnet Console
 
-```
+```bash
 telnet 192.168.1.10
 ```
 
 Commands are deliberately terse:
 
-```
+```text
 ?  h        this help
 s           full status
 c           encoder count
@@ -290,7 +309,7 @@ q           disconnect
 
 ### Example
 
-```
+```text
 > n
 Name:   ALS-lab
 MAC:    DE:AD:BE:EF:FE:10
@@ -320,7 +339,7 @@ The Pico version this is derived from used its second core for the sensor. The
 RA4M1 has one core, so everything is one cooperative loop with no blocking
 call in it:
 
-```
+```text
 loop()
   encoder.update()      debounce the button (channels are interrupt driven)
   temperature.update()  tick the async conversion state machine
