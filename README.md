@@ -147,15 +147,16 @@ on one LAN will fight, so give each board its own:
 ## LCD Behaviour
 
 ```text
-Line 1   ALS-lab            <- system name, first 2 s
-         192.168.1.10       <- then the address
-Line 2    23.45°C E:  128   <- temperature and encoder count
+        |    ALS-lab     |  <- system name, centred, first 2 s
+Line 1  |  192.168.1.10  |  <- then the address, also centred
+Line 2  | 23.45°C E:  128|  <- temperature and encoder count
 ```
 
-Line 1 shows the system name for at least `LCD_NAME_HOLD_MS` (2 s) and then the
-IP address. In DHCP mode the name stays up until the lease lands, so the 2 s
-minimum always holds — the name is already on the display before Ethernet is
-brought up, because a DHCP request blocks for seconds.
+Line 1 is **centred** across the 16 columns and shows the system name for at
+least `LCD_NAME_HOLD_MS` (2 s), then the IP address. In DHCP mode the name
+stays up until the lease lands, so the 2 s minimum always holds — the name is
+already on the display before Ethernet is brought up, because a DHCP request
+blocks for seconds.
 
 Line 2 is always exactly 16 columns: temperature as `NN.NN` with two decimals
 plus the degree sign, and the encoder count. `--.--` means no sensor.

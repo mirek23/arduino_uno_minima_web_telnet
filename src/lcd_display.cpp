@@ -165,6 +165,19 @@ static void padTo(char* out, size_t used) {
     out[LCD_COLS] = '\0';
 }
 
+// Centre text across all LCD_COLS columns, padding both sides with spaces.
+// An odd remainder goes to the right, so a 7-character name on a 16-column
+// panel sits at column 4. Text wider than the display is truncated, which is
+// what the left-aligned version did too.
+static void centerInto(char* out, const char* text) {
+    size_t n = strlen(text);
+    if (n > LCD_COLS) n = LCD_COLS;
+    size_t left = (LCD_COLS - n) / 2;
+    memset(out, ' ', LCD_COLS);
+    memcpy(out + left, text, n);
+    out[LCD_COLS] = '\0';
+}
+
 void LcdDisplay::composeLine1(char* out) {
     // Hold the system name for at least LCD_NAME_HOLD_MS, then switch to the
     // address. Before a DHCP lease lands there is no address to show, so the
@@ -178,10 +191,7 @@ void LcdDisplay::composeLine1(char* out) {
         snprintf(buf, sizeof(buf), "%s", _sysName);
     }
 
-    size_t n = strlen(buf);
-    if (n > LCD_COLS) n = LCD_COLS;
-    memcpy(out, buf, n);
-    padTo(out, n);
+    centerInto(out, buf);
 }
 
 void LcdDisplay::composeLine2(char* out) {
