@@ -61,7 +61,8 @@ static String jsonEscape(const char* s) {
 
 // ─── Construction ────────────────────────────────────────────────────────────
 
-WebServer::WebServer() : _server(WEB_SERVER_PORT), _state(nullptr) {
+WebServer::WebServer() : _server(WEB_SERVER_PORT), _state(nullptr),
+                         _lastHeartbeat(0) {
     for (int i = 0; i < HTTP_MAX_CLIENTS; i++) {
         _clients[i].active          = false;
         _clients[i].sseMode         = false;
@@ -71,7 +72,7 @@ WebServer::WebServer() : _server(WEB_SERVER_PORT), _state(nullptr) {
         _clients[i].crlfState       = 0;
         _clients[i].headersComplete = false;
         _clients[i].lastActivity    = 0;
-        _clients[i].lastKeepalive   = 0;
+        _clients[i].sseSince        = 0;
     }
 }
 
@@ -91,16 +92,15 @@ void WebServer::update(bool stateChanged) {
         if (_clients[i].active) processClient(_clients[i]);
     }
 
-    if (stateChanged) pushSSE();
-
-    // Keep idle SSE connections from being reaped by the browser or a proxy.
-    uint32_t now = millis();
-    for (int i = 0; i < HTTP_MAX_CLIENTS; i++) {
-        HttpClient& hc = _clients[i];
-        if (!hc.active || !hc.sseMode) continue;
-        if (now - hc.lastKeepalive < SSE_KEEPALIVE_MS) continue;
-        hc.lastKeepalive = now;
-        hc.client.print(": ping\r\n\r\n");
+    // Push on change, and otherwise on a timer. The periodic push is what
+    // lets the browser notice that the board went away: after a reboot the
+    // W5500 is reset without closing its TCP connections, so the browser's
+    // socket stays half-open, onerror never fires, and only a missing
+    // heartbeat reveals that the stream is dead.
+    if (stateChanged) {
+        pushSSE();
+    } else if (millis() - _lastHeartbeat >= SSE_HEARTBEAT_MS) {
+        pushSSE();
     }
 }
 
@@ -124,7 +124,13 @@ void WebServer::acceptClients() {
         hc.crlfState       = 0;
         hc.headersComplete = false;
         hc.lastActivity    = millis();
-        hc.lastKeepalive   = millis();
+        hc.sseSince        = 0;
+
+        // EthernetClient::stop() polls for a graceful close and gives up only
+        // after its Stream timeout, 1000 ms by default. That is a full second
+        // of stalled loop every time a peer disappears mid-response, which
+        // freezes the LCD and the telnet console too. Bound it.
+        hc.client.setTimeout(HTTP_CLOSE_TIMEOUT_MS);
         return;
     }
 
@@ -136,6 +142,7 @@ void WebServer::closeClient(HttpClient& hc) {
     hc.client.stop();
     hc.active          = false;
     hc.sseMode         = false;
+    hc.sseSince        = 0;
     hc.reqLen          = 0;
     hc.haveReqLine     = false;
     hc.overflow        = false;
@@ -230,25 +237,24 @@ void WebServer::routeRequest(HttpClient& hc) {
 
     // ── Event stream: the only route that keeps the socket open ───────────
     if (path == "/events" && isGet) {
-        if (sseClientCount() >= SSE_MAX_CLIENTS) {
-            sendSimple(hc, "503 Service Unavailable", "Too many event streams");
-            closeClient(hc);
-            return;
-        }
+        // A reload must always get a stream. Refusing with 503 left the
+        // dashboard disconnected whenever the previous socket had not yet
+        // finished closing — which is exactly when someone is reloading.
+        if (sseClientCount() >= SSE_MAX_CLIENTS) evictOldestSSE();
+
         sendSSEHeaders(hc);
-        hc.sseMode       = true;
-        hc.lastKeepalive = millis();
+        hc.sseMode  = true;
+        hc.sseSince = millis();
         hc.client.print("data: " + stateJSON() + "\r\n\r\n");
+        _lastHeartbeat = millis();
         return;                             // deliberately not closed
     }
 
-    // ── Static assets ─────────────────────────────────────────────────────
+    // ── The dashboard ─────────────────────────────────────────────────────
+    // The stylesheet and script are inlined into this document, so the whole
+    // dashboard is one request.
     if (isGet && path == "/index.html") {
         sendAsset(hc, "text/html; charset=utf-8", WEB_INDEX_HTML, WEB_INDEX_HTML_LEN);
-    } else if (isGet && path == "/style.css") {
-        sendAsset(hc, "text/css; charset=utf-8", WEB_STYLE_CSS, WEB_STYLE_CSS_LEN);
-    } else if (isGet && path == "/app.js") {
-        sendAsset(hc, "application/javascript; charset=utf-8", WEB_APP_JS, WEB_APP_JS_LEN);
 
     // ── API ───────────────────────────────────────────────────────────────
     } else if (isGet && path == "/api/status") {
@@ -419,17 +425,33 @@ void WebServer::sendSimple(HttpClient& hc, const char* status, const char* body)
 // ─── SSE push ────────────────────────────────────────────────────────────────
 
 void WebServer::pushSSE() {
+    _lastHeartbeat = millis();
     if (!_state) return;
+
     String msg = "data: " + stateJSON() + "\r\n\r\n";
     for (int i = 0; i < HTTP_MAX_CLIENTS; i++) {
         HttpClient& hc = _clients[i];
         if (!hc.active || !hc.sseMode) continue;
         if (hc.client.connected()) {
             hc.client.print(msg);
-            hc.lastKeepalive = millis();
         } else {
             closeClient(hc);
         }
+    }
+}
+
+void WebServer::evictOldestSSE() {
+    int      victim = -1;
+    uint32_t oldest = 0;
+    for (int i = 0; i < HTTP_MAX_CLIENTS; i++) {
+        HttpClient& hc = _clients[i];
+        if (!hc.active || !hc.sseMode) continue;
+        uint32_t age = millis() - hc.sseSince;
+        if (victim < 0 || age > oldest) { victim = i; oldest = age; }
+    }
+    if (victim >= 0) {
+        Serial.println("[Web] evicting the oldest event stream to free a slot");
+        closeClient(_clients[victim]);
     }
 }
 

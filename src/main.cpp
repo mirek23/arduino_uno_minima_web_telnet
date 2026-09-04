@@ -136,9 +136,12 @@ static void startEthernet() {
 void setup() {
     Serial.begin(115200);
     // Native USB CDC: give a host that is already attached a moment to open
-    // the port, but never wait for one that is not there.
+    // the port, but never wait for one that is not there. Keep this short —
+    // it delays the whole boot, and after a reboot the browser is already
+    // trying to reconnect. A monitor that re-enumerates after a reset will
+    // miss the first lines whatever value is used here.
     uint32_t t0 = millis();
-    while (!Serial && (millis() - t0) < 1500) { /* wait briefly */ }
+    while (!Serial && (millis() - t0) < 300) { /* wait briefly */ }
     Serial.println("\n[Main] UNO R4 Minima web/telnet server booting...");
 
     // ── Encoder and button ────────────────────────────────────────────────

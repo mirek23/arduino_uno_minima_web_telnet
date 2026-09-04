@@ -115,10 +115,12 @@ and multicast MACs.
 ## Web Assets Are Generated
 
 `data/index.html`, `data/style.css`, `data/app.js` are the sources you edit.
-`tools/gen_web_assets.py` (a `pre:` `extra_scripts` hook) turns them into
-`src/web_assets.cpp` on every build; that file is generated and committed —
-**never hand-edit it**. It only rewrites when content changed, so unchanged
-assets do not force a recompile.
+`tools/gen_web_assets.py` (a `pre:` `extra_scripts` hook) folds all three into
+**one** document in `src/web_assets.cpp` on every build; that file is generated
+and committed — **never hand-edit it**. It only rewrites when content changed,
+so unchanged assets do not force a recompile.
+
+The single-document layout is not cosmetic: see the socket budget below.
 
 Run it standalone with `python3 tools/gen_web_assets.py`.
 
@@ -136,9 +138,14 @@ p [ms] (poll)  x (stop)  q (quit)
 ## REST API
 
 ```
-GET  /  /style.css  /app.js  /events  /api/status  /api/netcfg
+GET  /  /events  /api/status  /api/netcfg
 POST /api/reset  /api/netcfg?dhcp&ip&sn&gw&dns&name&mac  /api/save  /api/reboot
 ```
+
+`/` is one self-contained document: `tools/gen_web_assets.py` inlines
+`data/style.css` and `data/app.js` into `data/index.html` at build time, and an
+empty `data:` favicon suppresses `/favicon.ico`. There are deliberately **no**
+`/style.css` or `/app.js` routes.
 
 ---
 
@@ -172,7 +179,10 @@ HTTP_MAX_CLIENTS 4       SSE_MAX_CLIENTS 2    TELNET_MAX_CLIENTS 2
 ```
 
 W5500 has 8 sockets; two are listeners, so keep
-`HTTP_MAX_CLIENTS + TELNET_MAX_CLIENTS <= 6`.
+`HTTP_MAX_CLIENTS + TELNET_MAX_CLIENTS <= 6`. It sits exactly on that ceiling
+at 4 + 2, which is why the dashboard must be a single request — a page pulling
+four files plus `/events` exceeded the client pool and had a request refused,
+showing up as "the page needs reloading two or three times".
 
 ---
 
@@ -197,5 +207,23 @@ W5500 has 8 sockets; two are listeners, so keep
   (PlatformIO's `-w` hides its `#warning`), so DS18B20 read timing is tight;
   `TEMP_MAX_ERRORS` consecutive failures are tolerated before the sensor is
   declared lost. `OneWireNg` is the fallback if it proves unreliable.
+- **Surviving a reboot** was the hard part of the web UI, and three things
+  make it work; do not undo any of them.
+  1. The board pushes full state on change *and* every `SSE_HEARTBEAT_MS` as a
+     real `data:` event. An SSE `": ping"` comment does **not** reach
+     `EventSource.onmessage`, so it gives the page nothing to measure.
+  2. `data/app.js` runs a `WATCHDOG_MS` timer and reconnects when no event
+     arrives. `NVIC_SystemReset()` resets the W5500 without closing its TCP
+     connections, so the browser keeps a half-open socket, `onerror` never
+     fires, and the status dot would stay green forever with no data. The dot
+     tracks *data arriving*, not socket state.
+  3. `/events` **evicts** the oldest stream when `SSE_MAX_CLIENTS` is reached
+     instead of returning 503 — a reload has to win, and it happens exactly
+     when the previous socket has not finished closing.
+- `EthernetClient::stop()` blocks up to its `Stream` timeout (1000 ms default)
+  waiting for a graceful close, which stalls the whole loop. Accepted clients
+  get `setTimeout(HTTP_CLOSE_TIMEOUT_MS)`.
+- The `while (!Serial)` wait in `setup()` is capped at 300 ms, not 1500: it
+  delays every boot, and a re-enumerating monitor misses the first lines anyway.
 - Ethernet 2.0.2 hardcodes the DHCP option-12 hostname to `WIZnet<MAC>`; the
   configurable system name is not sent on the wire. Documented, not patched.

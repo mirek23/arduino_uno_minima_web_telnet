@@ -44,6 +44,14 @@ const TEMP_MAX   = 100;
 const ARC_LENGTH = 283;      // half-circle length in the gauge's SVG units
 const MAX_LOG    = 40;
 
+// The board pushes its state at least every SSE_HEARTBEAT_MS (5 s). If nothing
+// arrives for this long the stream is dead even though the socket still looks
+// open, so reconnect. This is the only way to notice a reboot: the W5500 is
+// reset without closing its TCP connections, the browser's socket is left
+// half-open, and onerror never fires.
+const WATCHDOG_MS = 15000;
+const RETRY_MS    = 3000;
+
 // ── Event log ────────────────────────────────────────────────────────────────
 function logEvent(msg) {
   const li = document.createElement('li');
@@ -131,32 +139,60 @@ function applyState(s) {
 
 // ── SSE connection ───────────────────────────────────────────────────────────
 
-let evtSource = null;
+let evtSource      = null;
 let reconnectTimer = null;
+let watchdogTimer  = null;
+let lastMsgAt      = 0;
+let everConnected  = false;
+
+function setDot(state) {          // 'connected' | 'error' | ''
+  connDot.className = 'status-dot' + (state ? ' ' + state : '');
+  connDot.title = state === 'connected' ? 'Receiving live data'
+                : state === 'error'     ? 'No data – reconnecting'
+                : 'Connecting…';
+}
+
+function scheduleReconnect(why) {
+  setDot('error');
+  logEvent(why + ' – retrying in ' + (RETRY_MS / 1000) + ' s');
+  if (evtSource) { evtSource.close(); evtSource = null; }
+  clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(connectSSE, RETRY_MS);
+}
 
 function connectSSE() {
   if (evtSource) { evtSource.close(); evtSource = null; }
+  clearTimeout(reconnectTimer);
 
+  setDot('');
   evtSource = new EventSource('/events');
+  // Treat the stream as silent until real data lands: onopen only proves the
+  // socket opened, not that the board behind it is alive.
+  lastMsgAt = Date.now();
 
   evtSource.onopen = () => {
-    connDot.className = 'status-dot connected';
-    logEvent('Live connection established');
-    clearTimeout(reconnectTimer);
+    logEvent(everConnected ? 'Reconnected' : 'Live connection established');
+    everConnected = true;
+    lastMsgAt = Date.now();
   };
 
   evtSource.onmessage = (e) => {
+    lastMsgAt = Date.now();
+    setDot('connected');           // the dot means "data is flowing"
     try { applyState(JSON.parse(e.data)); }
     catch (err) { console.warn('SSE parse error:', err); }
   };
 
-  evtSource.onerror = () => {
-    connDot.className = 'status-dot error';
-    logEvent('Connection lost – retrying in 3 s');
-    evtSource.close();
-    evtSource = null;
-    reconnectTimer = setTimeout(connectSSE, 3000);
-  };
+  evtSource.onerror = () => scheduleReconnect('Connection lost');
+
+  // One watchdog for the life of the page, not one per connection.
+  if (!watchdogTimer) {
+    watchdogTimer = setInterval(() => {
+      if (!evtSource) return;                       // a retry is already queued
+      if (Date.now() - lastMsgAt < WATCHDOG_MS) return;
+      scheduleReconnect('No data for ' + (WATCHDOG_MS / 1000) + ' s');
+    }, 1000);
+  }
 }
 
 // ── Encoder reset ────────────────────────────────────────────────────────────
@@ -283,3 +319,11 @@ renderTemp(null, false);
 syncModeFields();
 logEvent('Dashboard loaded');
 connectSSE();
+
+// Browsers throttle timers in background tabs, so a hidden page can sit on a
+// dead stream. Re-check as soon as it comes back to the foreground.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (evtSource && Date.now() - lastMsgAt < WATCHDOG_MS) return;
+  scheduleReconnect('Tab resumed with a stale stream');
+});

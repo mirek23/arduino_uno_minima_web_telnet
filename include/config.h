@@ -120,8 +120,23 @@
 // Drop a half-open HTTP connection after this long with no progress (ms).
 #define HTTP_CLIENT_TIMEOUT_MS  8000
 
-// SSE keep-alive comment interval (ms) — stops idle proxies timing us out.
-#define SSE_KEEPALIVE_MS        15000
+// How often the full state is pushed to SSE clients even when nothing has
+// changed (ms). This has to be a real data event, not an SSE ": ping"
+// comment: comments never reach EventSource.onmessage, so a browser has no
+// way to tell a live stream from one whose peer vanished. With a periodic
+// data event the page can run a watchdog and reconnect itself — which is what
+// has to happen after the board reboots, because the W5500 is reset without
+// closing its TCP connections and the browser's socket stays half-open.
+#define SSE_HEARTBEAT_MS        5000
+
+// Client-side watchdog window, written into data/app.js for reference; the
+// browser reconnects if no event arrives for this long.
+#define SSE_WATCHDOG_MS         15000
+
+// Cap on how long EthernetClient::stop() may block waiting for a graceful
+// close. The library default is 1000 ms, which stalls the whole cooperative
+// loop when a peer disappears mid-response.
+#define HTTP_CLOSE_TIMEOUT_MS   150
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Telnet Server

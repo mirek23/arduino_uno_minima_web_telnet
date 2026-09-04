@@ -256,16 +256,39 @@ Open `http://192.168.1.10/`.
   **Save to EEPROM** and **Reboot system**
 - **Event log** — timestamped state changes
 
-Updates are event-driven over
+Updates arrive over
 [Server-Sent Events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events)
-(`/events`); the browser reconnects on its own if the link drops.
+(`/events`). Two details matter for surviving a reboot:
+
+- The board pushes its full state on every change **and** at least every
+  `SSE_HEARTBEAT_MS` (5 s) as a real `data:` event. An SSE `: ping` comment
+  would not do — comments never reach `EventSource.onmessage`, so the page
+  would have nothing to measure liveness against.
+- The page runs a **watchdog**: if no event arrives for `WATCHDOG_MS` (15 s) it
+  closes the stream and reconnects, retrying every 3 s. This is the only way to
+  notice a reboot. `NVIC_SystemReset()` resets the W5500 without closing its
+  TCP connections, so the browser is left with a half-open socket — `onerror`
+  never fires and the connection indicator would otherwise stay green forever
+  while no data flowed. The indicator now tracks *data arriving*, not merely
+  the socket being open.
+
+It also reconnects immediately when a backgrounded tab is brought back, since
+browsers throttle timers in hidden tabs.
+
+**The dashboard is a single request.** The stylesheet and script are folded
+into the HTML at build time and an empty `data:` favicon suppresses the
+browser's `/favicon.ico` request. The W5500 has only eight sockets and the
+budget is tight — `HTTP_MAX_CLIENTS` (4) + one HTTP listener +
+`TELNET_MAX_CLIENTS` (2) + one telnet listener is exactly eight — so a page
+that pulled four files plus the event stream would exceed the client pool and
+have a request refused. That was the cause of a dashboard needing two or three
+reloads before it came up.
 
 ### REST API
 
 | Method | URL | Description |
 |---|---|---|
-| GET | `/` | dashboard |
-| GET | `/style.css`, `/app.js` | assets, served from flash |
+| GET | `/` | dashboard — one self-contained document, CSS and JS inlined |
 | GET | `/events` | SSE stream |
 | GET | `/api/status` | live state snapshot |
 | GET | `/api/netcfg` | staged config plus what is currently active |
@@ -367,7 +390,14 @@ wedge a session; a connection that stalls is dropped after
 the HTTP or telnet response can drain first.
 
 The W5500 has 8 sockets. Two are taken by the HTTP and telnet listeners, so
-keep `HTTP_MAX_CLIENTS + TELNET_MAX_CLIENTS` at six or below.
+keep `HTTP_MAX_CLIENTS + TELNET_MAX_CLIENTS` at six or below — it currently
+sits exactly on that ceiling at 4 + 2.
+
+`EthernetClient::stop()` polls for a graceful close and only gives up after its
+`Stream` timeout, **1000 ms by default**. Left alone that stalls the whole
+cooperative loop — freezing the LCD and telnet too — every time a peer
+disappears mid-response, so accepted clients get
+`setTimeout(HTTP_CLOSE_TIMEOUT_MS)` (150 ms) instead.
 
 ---
 
@@ -387,7 +417,7 @@ keep `HTTP_MAX_CLIENTS + TELNET_MAX_CLIENTS` at six or below.
 | `include/web_assets.h` | declarations for the flash-resident web assets |
 | `src/web_assets.cpp` | **generated** — do not edit |
 | `data/` | the dashboard sources you *do* edit |
-| `tools/gen_web_assets.py` | turns `data/` into `src/web_assets.cpp` |
+| `tools/gen_web_assets.py` | inlines `data/` into one document in `src/web_assets.cpp` |
 
 ---
 

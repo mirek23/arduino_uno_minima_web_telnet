@@ -42,7 +42,7 @@ struct HttpClient {
     uint8_t        crlfState;                   // rolling match for CRLF CRLF
     bool           headersComplete;
     uint32_t       lastActivity;
-    uint32_t       lastKeepalive;               // SSE keep-alive timer
+    uint32_t       sseSince;                    // when SSE mode began
 };
 
 // ─── Web Server ──────────────────────────────────────────────────────────────
@@ -91,9 +91,13 @@ private:
     EthernetServer _server;
     HttpClient     _clients[HTTP_MAX_CLIENTS];
     AppState*      _state;
+    uint32_t       _lastHeartbeat;
 
     void acceptClients();
     void processClient(HttpClient& hc);
+    // Frees an SSE slot by dropping the longest-running stream, so a page
+    // reload always gets a connection instead of a 503.
+    void evictOldestSSE();
     void routeRequest(HttpClient& hc);
     void closeClient(HttpClient& hc);
     int  sseClientCount() const;
