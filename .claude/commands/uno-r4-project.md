@@ -112,6 +112,19 @@ and multicast MACs.
 
 ---
 
+## Firmware Revision Comes From The Git Tag
+
+`tools/gen_version.py` is a `pre:` hook that defines `FIRMWARE_VERSION` from
+`git describe --tags --dirty --always` (tags here look like `R01.00`, the
+user's convention — do not impose `vX.Y.Z`). `include/version.h` holds the
+`"unknown"` fallback. Surfaced at boot on serial, in the web IP-configuration
+popup (`fw` field of `/api/netcfg`), and by the telnet `v` command plus the
+session banner.
+
+Injected as a `-D`, deliberately **not** a generated source file: a committed
+file holding `git describe` output is rewritten after every commit and leaves
+the tree permanently dirty. Do not "improve" it into a generated file.
+
 ## Web Assets Are Generated
 
 `data/index.html`, `data/style.css`, `data/app.js` are the sources you edit.
@@ -129,7 +142,7 @@ Run it standalone with `python3 tools/gen_web_assets.py`.
 ## Telnet Commands
 
 ```
-?  h  |  s  |  c  |  cr  |  t  |  n
+?  h  |  v  |  s  |  c  |  cr  |  t  |  n
 nm 0|1  ni <addr>  ns <mask>  ng <addr>  nd <addr>  nn <name>  mac <addr>
 d (stage defaults)  w (write EEPROM)  e (erase)  rb (reboot)
 p [ms] (poll)  x (stop)  q (quit)

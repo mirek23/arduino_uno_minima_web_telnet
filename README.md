@@ -18,6 +18,7 @@ adapted to a single-core Renesas RA4M1 with no filesystem partition.
 - [LCD Behaviour](#lcd-behaviour)
 - [Encoder](#encoder)
 - [Temperature](#temperature)
+- [Firmware Revision](#firmware-revision) — comes from the git tag
 - [Building & Flashing](#building--flashing)
 - [Web Dashboard](#web-dashboard) and [REST API](#rest-api)
 - [Telnet Console](#telnet-console)
@@ -216,6 +217,45 @@ plugged in while the board is running.
 
 ---
 
+## Firmware Revision
+
+The revision comes from the **git tag**, not from a number kept in a source
+file. `tools/gen_version.py` runs before every build and defines
+`FIRMWARE_VERSION` from `git describe --tags --dirty --always`:
+
+| Reported | Means |
+|---|---|
+| `R01.00` | built from exactly that tag |
+| `R01.00-3-gaba424f` | three commits past `R01.00`, at `aba424f` |
+| `R01.00-3-gaba424f-dirty` | …and the working tree had uncommitted changes |
+| `aba424f` | no tag is reachable from this commit |
+| `unknown` | no git metadata at all, e.g. building from a source archive |
+
+So the release workflow is just: commit, **tag**, build, flash.
+
+```bash
+git tag R01.01
+~/.platformio/penv/bin/pio run -t upload
+```
+
+A `-dirty` or `-N-g<sha>` suffix on a board in the field means it is *not*
+running a tagged release — useful to know before chasing a bug.
+
+It is shown in three places:
+
+- the serial console at boot — the quickest way to confirm what you just flashed
+- the **IP configuration** popup, under the title
+- the telnet `v` command, and in the session banner
+
+`include/version.h` supplies the `unknown` fallback so the tree still builds
+without git. The value is injected as a `-D` flag rather than written into a
+generated source file on purpose: a committed file holding `git describe`
+output would be rewritten after every commit and leave the working tree
+permanently dirty. Check what would be injected with
+`python3 tools/gen_version.py`.
+
+---
+
 ## Building & Flashing
 
 PlatformIO's CLI is not on `PATH` by default:
@@ -251,9 +291,10 @@ Open `http://192.168.1.10/`.
 - **Encoder** — live count and a reset button
 - **Temperature** — SVG gauge, two decimals, colour coded
 - **Network** — system name, address, mode, link state
-- **IP configuration** — the header button opens a modal with the addressing
-  mode (DHCP or static), IP, mask, gateway, DNS, system name and MAC, plus
-  **Save to EEPROM** and **Reboot system**
+- **IP configuration** — the header button opens a modal showing the
+  [firmware revision](#firmware-revision) and the addressing mode (DHCP or
+  static), IP, mask, gateway, DNS, system name and MAC, plus **Save to EEPROM**
+  and **Reboot system**
 - **Event log** — timestamped state changes
 
 Updates arrive over
@@ -291,7 +332,7 @@ reloads before it came up.
 | GET | `/` | dashboard — one self-contained document, CSS and JS inlined |
 | GET | `/events` | SSE stream |
 | GET | `/api/status` | live state snapshot |
-| GET | `/api/netcfg` | staged config plus what is currently active |
+| GET | `/api/netcfg` | staged config, what is active, and the firmware revision |
 | POST | `/api/reset` | zero the encoder count |
 | POST | `/api/netcfg?...` | validate and stage config changes |
 | POST | `/api/save` | write the staged config to EEPROM |
@@ -320,6 +361,7 @@ Commands are deliberately terse:
 
 ```text
 ?  h        this help
+v           firmware revision
 s           full status
 c           encoder count
 cr          reset encoder count
@@ -414,6 +456,8 @@ disappears mid-response, so accepted clients get
 | `*/lcd_display.*` | PCF8574/HD44780 driver and the two-line display policy |
 | `*/web_server.*` | HTTP, SSE, REST API |
 | `*/telnet_server.*` | telnet console |
+| `include/version.h` | `FIRMWARE_VERSION`, injected from the git tag at build time |
+| `tools/gen_version.py` | runs `git describe` and passes the result in as `-D` |
 | `include/web_assets.h` | declarations for the flash-resident web assets |
 | `src/web_assets.cpp` | **generated** — do not edit |
 | `data/` | the dashboard sources you *do* edit |
