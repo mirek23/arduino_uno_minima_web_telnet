@@ -26,6 +26,7 @@
 #include "temperature.h"
 #include "encoder.h"
 #include "lcd_display.h"
+#include "version.h"
 
 // ─── Global state ────────────────────────────────────────────────────────────
 
@@ -143,6 +144,8 @@ void setup() {
     uint32_t t0 = millis();
     while (!Serial && (millis() - t0) < 300) { /* wait briefly */ }
     Serial.println("\n[Main] UNO R4 Minima web/telnet server booting...");
+    Serial.print("[Main] firmware ");
+    Serial.println(FIRMWARE_VERSION);
 
     // ── Encoder and button ────────────────────────────────────────────────
     g_encoder.begin();

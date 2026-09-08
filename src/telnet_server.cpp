@@ -1,5 +1,6 @@
 #include "telnet_server.h"
 #include "eeprom_config.h"
+#include "version.h"
 
 static String ipToString(const IPAddress& ip) {
     char buf[16];
@@ -50,6 +51,7 @@ void TelnetServer::acceptClients() {
         String name = (_state && _state->pending) ? String(_state->pending->sysName)
                                                   : String("UNO R4");
         println(tc, "\r\n=== " + name + " - UNO R4 Minima console ===");
+        println(tc, "Firmware " + String(FIRMWARE_VERSION));
         println(tc, "Type '?' for the command list.");
         sendPrompt(tc);
         return;
@@ -151,6 +153,9 @@ void TelnetServer::processLine(TelnetClient& tc, const char* line) {
 
     if (c == "?" || c == "h" || c == "help") {
         sendHelp(tc);
+
+    } else if (c == "v") {
+        println(tc, "Firmware " + String(FIRMWARE_VERSION));
 
     } else if (c == "s") {
         sendStatus(tc);
@@ -293,6 +298,7 @@ void TelnetServer::sendHelp(TelnetClient& tc) {
     println(tc,
         "\r\nCommands:\r\n"
         "  ?  h        this help\r\n"
+        "  v           firmware revision\r\n"
         "  s           full status\r\n"
         "  c           encoder count\r\n"
         "  cr          reset encoder count\r\n"

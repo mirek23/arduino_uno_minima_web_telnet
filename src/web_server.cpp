@@ -1,5 +1,6 @@
 #include "web_server.h"
 #include "web_assets.h"
+#include "version.h"
 
 // ─── Small helpers ───────────────────────────────────────────────────────────
 
@@ -498,6 +499,7 @@ String WebServer::netcfgJSON() {
     json += "\",\"activeSn\":\""; json += ipToString(_state->subnet);
     json += "\",\"activeGw\":\""; json += ipToString(_state->gateway);
     json += "\",\"activeDns\":\"";json += ipToString(_state->dns);
+    json += "\",\"fw\":\"";    json += jsonEscape(FIRMWARE_VERSION);
     json += "\",\"stored\":";  json += _state->cfgStored ? "true" : "false";
     json += ",\"dirty\":";     json += _state->cfgDirty ? "true" : "false";
     json += ",\"jumper\":";    json += _state->defaultsJumper ? "true" : "false";

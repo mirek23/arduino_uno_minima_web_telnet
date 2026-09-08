@@ -31,6 +31,7 @@ const cfgSave   = $('cfgSave');
 const cfgReboot = $('cfgReboot');
 const cfgClose  = $('cfgClose');
 const cfgMsg    = $('cfgMsg');
+const fwVer     = $('fwVer');
 
 const modeStatic   = $('modeStatic');
 const modeDhcp     = $('modeDhcp');
@@ -238,6 +239,10 @@ cfgOpen.addEventListener('click', async () => {
     const r = await fetch('/api/netcfg');
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const c = await r.json();
+
+    // Revision from `git describe --tags` at build time, so it names the tag
+    // the running firmware was built from.
+    fwVer.textContent  = c.fw || 'unknown';
 
     modeDhcp.checked   = !!c.dhcp;
     modeStatic.checked = !c.dhcp;

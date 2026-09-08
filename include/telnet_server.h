@@ -22,6 +22,7 @@ struct TelnetClient {
 // Deliberately terse commands, since these get typed a lot:
 //
 //   ?  h          this help
+//   v             firmware revision (from the git tag at build time)
 //   s             status: count, temperature, network, config state
 //   c             encoder count
 //   cr            reset the encoder count to zero

@@ -243,6 +243,17 @@ dialog h3 {
 
 .hint { font-size: .74rem; color: var(--text-dim); line-height: 1.45; }
 
+/* Firmware revision under the dialog title */
+.meta {
+  font-size: .74rem;
+  color: var(--text-dim);
+  margin-top: -.4rem;
+}
+.meta span {
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  color: var(--text);
+}
+
 .msg {
   font-size: .8rem;
   border-radius: 8px;
