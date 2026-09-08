@@ -14,11 +14,12 @@
 //   P0 = RS, P1 = RW, P2 = E, P3 = backlight, P4..P7 = D4..D7
 //
 // Display policy, per the project brief:
-//   Boot splash  line 1 shows the centred system name on its own and line 2
-//                stays blank. It ends once the name has been up for
-//                LCD_NAME_HOLD_MS *and* an address is known — in DHCP mode
-//                that means the lease has landed, so the name is always shown
-//                for at least LCD_NAME_HOLD_MS.
+//   Boot splash  line 1 the centred system name, line 2 the centred firmware
+//                revision, so a boot or reboot shows what is running. It ends
+//                once the name has been up for LCD_NAME_HOLD_MS *and* an
+//                address is known — in DHCP mode that means the lease has
+//                landed, so the name is always shown for at least
+//                LCD_NAME_HOLD_MS.
 //   Afterwards   line 1 the IP address, line 2 the temperature as NN.NN degC
 //                plus the encoder count.
 // The splash latches off once, so a later link event cannot bring it back.

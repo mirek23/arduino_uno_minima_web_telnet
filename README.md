@@ -150,15 +150,30 @@ on one LAN will fight, so give each board its own:
 ```text
 boot splash            then
 |    ALS-lab     |     |  192.168.1.10  |
-|                |     | 23.45°C E:  128|
- name only,             address, plus
- line 2 blank           temperature and count
+|     R01.01     |     | 23.45°C E:  128|
+ system name and        address, plus
+ firmware revision      temperature and count
 ```
 
-**Boot splash.** The display comes up showing nothing but the centred system
-name — line 2 stays blank. The splash is retired once the name has been up for
+**Boot splash.** On power-up or reboot the display shows the centred system
+name with the centred firmware revision beneath it, so you can see what is
+running. The splash is retired once the name has been up for
 `LCD_NAME_HOLD_MS` (2 s) **and** an address is actually known, at which point
 line 1 switches to the IP and line 2 starts showing the readings.
+
+A revision longer than 16 columns is compacted rather than blindly truncated,
+so a shortened value can never be mistaken for a complete one:
+
+| Full revision | On the LCD | Meaning |
+|---|---|---|
+| `R01.01` | `R01.01` | exactly that tag |
+| `R01.01-dirty` | `R01.01-dirty` | tagged, uncommitted changes |
+| `R01.00-3-g7dedb26` | `R01.00+` | commits past the tag |
+| `R01.00-3-g7dedb26-dirty` | `R01.00+*` | …and a dirty tree |
+| `a-very-long-release-name` | `a-very-long-rel>` | the tag itself was cut |
+
+`+` means past the tag, `*` dirty, `>` truncated. The full string is always
+available from telnet `v` and the web popup.
 
 In DHCP mode that means the name stays on its own until the lease lands, however
 long that takes, so the 2 s minimum always holds. The name is painted before

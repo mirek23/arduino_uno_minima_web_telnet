@@ -1,4 +1,5 @@
 #include "lcd_display.h"
+#include "version.h"
 #include <Wire.h>
 
 // ─── PCF8574 bit assignments ─────────────────────────────────────────────────
@@ -192,10 +193,64 @@ void LcdDisplay::composeLine1(char* out) {
     centerInto(out, buf);
 }
 
+// Fit a `git describe` revision into 16 columns without producing something
+// that could be mistaken for a complete value. A tagged release fits as it is
+// ("R01.01"); a development build does not ("R01.00-3-g7dedb26" is 17), and
+// truncating it to "R01.00-3-g7dedb" would show a chopped commit hash that
+// still looks like a real revision. So drop the "-N-g<sha>" part and record
+// what it meant in two flag characters instead:
+//
+//   R01.01     built from exactly that tag
+//   R01.00+    commits past the tag
+//   R01.00+*   ...and the tree was dirty
+//   R01.01*    tagged, but built with uncommitted changes
+//   REL-2026.>+  the tag itself did not fit and was cut
+//
+// The untruncated string is always available over telnet ('v') and in the web
+// configuration popup.
+static void compactVersion(char* out, size_t outLen, const char* version) {
+    if (strlen(version) <= LCD_COLS) {
+        snprintf(out, outLen, "%s", version);
+        return;
+    }
+
+    bool        dirty = (strstr(version, "-dirty") != nullptr);
+    const char* ahead = strstr(version, "-g");
+
+    // Length of the tag itself, before git's "-<count>-g<sha>" suffix.
+    size_t base = strlen(version);
+    if (ahead != nullptr) {
+        const char* p = ahead;                  // step back over "-<count>"
+        while (p > version && p[-1] != '-') p--;
+        base = (p > version) ? (size_t)(p - 1 - version)
+                             : (size_t)(ahead - version);
+    } else if (dirty) {
+        base -= strlen("-dirty");
+    }
+
+    // Flag characters, in reading order after the tag. '>' is only added when
+    // the tag had to be cut, so a shortened value is never mistaken for a
+    // complete one.
+    char   suffix[4];
+    size_t n = 0;
+    if (base + (ahead ? 1u : 0u) + (dirty ? 1u : 0u) > LCD_COLS) suffix[n++] = '>';
+    if (ahead) suffix[n++] = '+';
+    if (dirty) suffix[n++] = '*';
+    suffix[n] = '\0';
+
+    if (base + n > LCD_COLS) base = LCD_COLS - n;
+    snprintf(out, outLen, "%.*s%s", (int)base, version, suffix);
+}
+
 void LcdDisplay::composeLine2(char* out) {
-    // Blank during the splash, so the first thing on the panel is the system
-    // name and nothing else.
-    if (!_splashDone) { padTo(out, 0); return; }
+    // During the splash the second line carries the firmware revision, so a
+    // boot or reboot shows what is running alongside the system name.
+    if (!_splashDone) {
+        char ver[LCD_COLS + 1];
+        compactVersion(ver, sizeof(ver), FIRMWARE_VERSION);
+        centerInto(out, ver);
+        return;
+    }
 
     // Layout, exactly 16 columns:  "_NN.NN`C E:_CCCC"
     //   6 temperature + degree + 'C' + space + "E:" + 5 count = 16

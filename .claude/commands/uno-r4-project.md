@@ -207,10 +207,13 @@ showing up as "the page needs reloading two or three times".
   stalled sockets are dropped after `HTTP_CLIENT_TIMEOUT_MS`.
 - The LCD is painted once in `setup()` *before* Ethernet, because a DHCP
   request blocks for seconds and the name must already be visible.
-- The boot splash shows **only** the centred system name; line 2 is held
-  blank until `_splashDone` latches (name up for `LCD_NAME_HOLD_MS` *and*
-  `_ipValid`). The latch is evaluated once per refresh in `update()` so both
-  lines always agree, and it is one-way so a link glitch cannot revive it.
+- The boot splash shows the centred system name on line 1 and the centred
+  firmware revision on line 2, until `_splashDone` latches (name up for
+  `LCD_NAME_HOLD_MS` *and* `_ipValid`). The latch is evaluated once per refresh
+  in `update()` so both lines always agree, and it is one-way so a link glitch
+  cannot revive it. `compactVersion()` fits a long `git describe` string into
+  16 columns using flag characters — `+` past the tag, `*` dirty, `>` the tag
+  itself was cut — rather than truncating into something that looks complete.
 - `LcdDisplay::begin()` back-dates `_lastRefresh` so that first paint happens.
 - DHCP failure falls back to static; if the stored static fields are blank
   (they are not validated in DHCP mode) it falls back to the compile-time
