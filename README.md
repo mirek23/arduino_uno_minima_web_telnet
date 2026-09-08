@@ -158,7 +158,7 @@ boot splash            then
 **Boot splash.** On power-up or reboot the display shows the centred system
 name with the centred firmware revision beneath it, so you can see what is
 running. The splash is retired once the name has been up for
-`LCD_NAME_HOLD_MS` (2 s) **and** an address is actually known, at which point
+`LCD_NAME_HOLD_MS` (4 s) **and** an address is actually known, at which point
 line 1 switches to the IP and line 2 starts showing the readings.
 
 A revision longer than 16 columns is compacted rather than blindly truncated,
@@ -175,10 +175,10 @@ so a shortened value can never be mistaken for a complete one:
 `+` means past the tag, `*` dirty, `>` truncated. The full string is always
 available from telnet `v` and the web popup.
 
-In DHCP mode that means the name stays on its own until the lease lands, however
-long that takes, so the 2 s minimum always holds. The name is painted before
-Ethernet is brought up, because a DHCP request blocks for seconds. The splash
-latches off once, so a later link event cannot bring it back.
+In DHCP mode the splash stays up until the lease lands, however long that
+takes, so the 4 s minimum always holds. It is painted before Ethernet is
+brought up, because a DHCP request blocks for seconds. The splash latches off
+once, so a later link event cannot bring it back.
 
 The handover happens on the next refresh tick, so it lands within
 `LCD_REFRESH_MS` (200 ms) of the condition being met.

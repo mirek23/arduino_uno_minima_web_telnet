@@ -45,9 +45,10 @@
 #define LCD_COLS                16
 #define LCD_ROWS                2
 
-// How long the system name stays on line 1 before the IP replaces it (ms).
-// Also the *minimum* name display time while waiting for a DHCP lease.
-#define LCD_NAME_HOLD_MS        2000
+// How long the boot splash (system name over firmware revision) stays up
+// before the address and readings replace it (ms). Also the *minimum* splash
+// time while waiting for a DHCP lease.
+#define LCD_NAME_HOLD_MS        4000
 
 // LCD refresh tick (ms). Only characters that actually changed are re-sent.
 #define LCD_REFRESH_MS          200
